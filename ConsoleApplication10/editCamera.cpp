@@ -10,9 +10,9 @@
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
 
-GLuint VBO; // Указатель на буфер вершин
-GLuint IBO; // Указатель на индексный буфер вершин
-GLuint gWorldLocation; // Указатель на мировые координаты 
+GLuint VBO;
+GLuint IBO;
+GLuint gWVPLocation;
 
 
 static const char* pVS = "                                                          \n\
@@ -20,13 +20,13 @@ static const char* pVS = "                                                      
                                                                                     \n\
 layout (location = 0) in vec3 Position;                                             \n\
                                                                                     \n\
-uniform mat4 gWorld;                                                                \n\
+uniform mat4 gWVP;                                                                  \n\
                                                                                     \n\
 out vec4 Color;                                                                     \n\
                                                                                     \n\
 void main()                                                                         \n\
 {                                                                                   \n\
-    gl_Position = gWorld * vec4(Position, 1.0);                                     \n\
+    gl_Position = gWVP * vec4(Position, 1.0);                                       \n\
     Color = vec4(clamp(Position, 0.0, 1.0), 1.0);                                   \n\
 }";
 
@@ -44,25 +44,29 @@ void main()                                                                     
 
 static void RenderSceneCB()
 {
-    glClear(GL_COLOR_BUFFER_BIT); // Закраска цвета
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    static float Scale = 0.0f; // Скорость изменения
+    static float Scale = 0.0f;
 
     Scale += 0.1f;
 
     Pipeline p;
-    p.Rotate(0.0f, Scale, 0.0f); // Вращение
-    p.WorldPos(0.0f, 0.0f, 5.0f); // Положение в мировой системе координат
-    p.SetPerspectiveProj(30.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f, 100.0f); // Настройки камеры
+    p.Rotate(0.0f, Scale, 0.0f);
+    p.WorldPos(0.0f, 0.0f, 3.0f);
+    Vector3f CameraPos(0.0f, 0.0f, -3.0f); // Позиция камеры
+    Vector3f CameraTarget(0.0f, 0.0f, 2.0f); // вращение камеры вокруг локальных координат
+    Vector3f CameraUp(0.0f, 1.0f, 0.0f); // Вращение камеры вокруг направления осмотра
+    p.SetCamera(CameraPos, CameraTarget, CameraUp);
+    p.SetPerspectiveProj(60.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f, 100.0f);
 
-    glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat*)p.GetTrans());
+    glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat*)p.GetTrans());
 
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
 
-    glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0); // Рисование тетраэдера
+    glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
 
     glDisableVertexAttribArray(0);
 
@@ -94,14 +98,14 @@ static void CreateIndexBuffer()
     unsigned int Indices[] = { 0, 3, 1,
                                1, 3, 2,
                                2, 3, 0,
-                               0, 2, 1 }; // массив индексов для соединения с вершинами
+                               0, 2, 1 };
 
     glGenBuffers(1, &IBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
 }
 
-static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType) // Добавление шейдеров
+static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
 {
     GLuint ShaderObj = glCreateShader(ShaderType);
 
@@ -128,7 +132,7 @@ static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum Shad
     glAttachShader(ShaderProgram, ShaderObj);
 }
 
-static void CompileShaders() // Обработка шейдеров
+static void CompileShaders()
 {
     GLuint ShaderProgram = glCreateProgram();
 
@@ -161,8 +165,8 @@ static void CompileShaders() // Обработка шейдеров
 
     glUseProgram(ShaderProgram);
 
-    gWorldLocation = glGetUniformLocation(ShaderProgram, "gWorld");
-    assert(gWorldLocation != 0xFFFFFFFF);
+    gWVPLocation = glGetUniformLocation(ShaderProgram, "gWVP");
+    assert(gWVPLocation != 0xFFFFFFFF);
 }
 
 int main(int argc, char** argv)
@@ -171,7 +175,7 @@ int main(int argc, char** argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("Tutorial 12");
+    glutCreateWindow("Tutorial 13");
 
     InitializeGlutCallbacks();
 
@@ -182,7 +186,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    glClearColor(0.0f, 1.0f, 0.0f, 0.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     CreateVertexBuffer();
     CreateIndexBuffer();
